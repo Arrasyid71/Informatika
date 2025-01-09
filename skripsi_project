@@ -1,0 +1,153 @@
+from kivy.lang import Builder
+from kivy.properties import BooleanProperty
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.gridlayout import GridLayout
+from kivy.app import App
+from kivy.uix.button import Button
+
+from kivymd.app import MDApp
+from kivymd.uix.label import MDLabel
+from kivymd.uix.textfield import MDTextField
+from kivymd.uix.button import MDRaisedButton
+from kivymd.uix.spinner import MDSpinner
+from kivymd.uix.card import MDCard
+from kivymd.uix.boxlayout import MDBoxLayout
+from kivymd.uix.menu import MDDropdownMenu
+
+class NoteApp(BoxLayout):
+    def __init__(self, **kwargs):
+        super().__init__(orientation="vertical", **kwargs)
+
+        # Header Section
+        self.header = MDLabel(
+            text="Pengelola Catatan Belajar Siswa",
+            font_style="H4",
+            halign="center",
+            size_hint=(1, 0.1),
+        )
+        self.add_widget(self.header)
+
+        # Input Section
+        self.input_layout = MDBoxLayout(size_hint=(1, 0.15), spacing=10)
+        self.note_input = MDTextField(
+            hint_text="Tulis catatan baru di sini...", multiline=False
+        )
+        self.input_layout.add_widget(self.note_input)
+
+        # Dropdown Menu for Categories
+        self.category_button = MDRaisedButton(
+            text="Pilih Kategori",
+            on_release=self.open_category_menu,
+        )
+        self.input_layout.add_widget(self.category_button)
+
+        self.category_menu = MDDropdownMenu(
+            caller=self.category_button,
+            items=[
+                {"text": "Matematika", "on_release": lambda x="Matematika": self.set_category(x)},
+                {"text": "Bahasa Inggris", "on_release": lambda x="Bahasa Inggris": self.set_category(x)},
+                {"text": "Sains", "on_release": lambda x="Sains": self.set_category(x)},
+                {"text": "Umum", "on_release": lambda x="Umum": self.set_category(x)},
+            ],
+            width_mult=4,
+        )
+
+        self.add_button = MDRaisedButton(
+            text="Tambah Catatan", on_release=self.add_note
+        )
+        self.input_layout.add_widget(self.add_button)
+
+        self.add_widget(self.input_layout)
+
+        # Search Section
+        self.search_layout = MDBoxLayout(size_hint=(1, 0.1), spacing=10)
+        self.search_input = MDTextField(hint_text="Cari catatan...", multiline=False)
+        self.search_button = MDRaisedButton(text="Cari", on_release=self.search_notes)
+        self.search_layout.add_widget(self.search_input)
+        self.search_layout.add_widget(self.search_button)
+
+        self.add_widget(self.search_layout)
+
+        # Note Display Section
+        self.scroll_view = ScrollView(size_hint=(1, 0.7))
+        self.note_list_layout = GridLayout(cols=1, size_hint_y=None, spacing=10)
+        self.note_list_layout.bind(minimum_height=self.note_list_layout.setter("height"))
+        self.scroll_view.add_widget(self.note_list_layout)
+
+        self.add_widget(self.scroll_view)
+
+        self.notes = []  # List to store notes
+        self.selected_category = None
+
+    def open_category_menu(self, instance):
+        self.category_menu.open()
+
+    def set_category(self, category):
+        self.selected_category = category
+        self.category_button.text = category
+        self.category_menu.dismiss()
+
+    def add_note(self, instance):
+        note_text = self.note_input.text.strip()
+        category = self.selected_category
+        if note_text and category:
+            note_data = {"text": note_text, "category": category, "important": False}
+            self.notes.append(note_data)
+            self.display_notes()
+            self.note_input.text = ""
+            self.category_button.text = "Pilih Kategori"
+            self.selected_category = None
+
+    def display_notes(self, filter_text=None):
+        self.note_list_layout.clear_widgets()
+        for note in self.notes:
+            if filter_text and filter_text.lower() not in note["text"].lower():
+                continue
+
+            card = MDCard(size_hint=(1, None), height=100, padding=10)
+            card_layout = MDBoxLayout(orientation="horizontal")
+
+            # Note content
+            note_label = MDLabel(
+                text=f"[{note['category']}] {note['text']}",
+                halign="left",
+                valign="middle",
+            )
+
+            # Star button to mark as important
+            star_button = MDRaisedButton(
+                text="TDK.Penting" if note["important"] else "Penting",
+                on_release=lambda x, n=note: self.toggle_important(n),
+            )
+
+            # Delete button
+            delete_button = MDRaisedButton(
+                text="Hapus", on_release=lambda x, n=note: self.delete_note(n)
+            )
+
+            card_layout.add_widget(note_label)
+            card_layout.add_widget(star_button)
+            card_layout.add_widget(delete_button)
+            card.add_widget(card_layout)
+
+            self.note_list_layout.add_widget(card)
+
+    def toggle_important(self, note):
+        note["important"] = not note["important"]
+        self.display_notes()
+
+    def delete_note(self, note):
+        self.notes.remove(note)
+        self.display_notes()
+
+    def search_notes(self, instance):
+        search_text = self.search_input.text.strip()
+        self.display_notes(filter_text=search_text)
+
+class NoteAppMain(MDApp):
+    def build(self):
+        return NoteApp()
+
+if __name__ == "__main__":
+    NoteAppMain().run()
